@@ -1,0 +1,195 @@
+---
+title: "Exploring the BRFSS data"
+output: 
+  html_document: 
+    fig_height: 4
+    highlight: pygments
+    theme: spacelab
+---
+
+## Setup
+
+### Load packages
+
+```{r load-packages, message = FALSE}
+library(ggplot2)
+library(dplyr)
+library(statsr)
+```
+
+### Load data
+
+```{r load-data}
+load("brfss2013.RData")
+```
+
+* * *
+
+## Part 1: Data
+
+The Behavioral Risk Factor Surveillance System (BRFSS) is an ongoing surveillance system designed to measure behavioral risk factors for the non-institutionalized adult population (18 years of age and older) residing in the US. 
+
+
+Collected method:  Te data is collected from all the US population by two methods: via telephone from one random adult in a household, and by cellphone from an adult who resides in a private residence or college housing. This can be view as a stratified sampling method, where each state is a strata, and them random sampling is employed.
+
+Data generalisability: Data was collected random in each state, so it can be generalisable to all states populations, additionally, since this was done for all states, the results can be generalisable to all US population. 
+
+Data causality: Data was collected via telephone and cellphone, representing an observation methodology, so the data only supports conclusions based on associations. The data is also succepted to non response bias.
+
+* * *
+
+## Part 2: Research questions
+
+**Research question 1:** What is the relationship between physical activities and the Mental Health  status?
+
+We want to explore the relationship between the physical activitie, since we have a persuasion that people that do more exercises tend to be more happier, less stressfuled and more sociable, and there is relation between the last variables and mental heal. However some extreme exercise behaviors can be also related to mental heaths problems (Peluso MA, Guerra de Andrade LH). The results can help to take in account this variable during medical treatments.
+
+**Research question 2:** What is the relationship between physical activities, the Mental Health  status and gender?
+
+It is know that men and women experience different kinds of mental health problem (Rosenfield S., Mouzon D.), and also there is an association between physical activities and gender (Sarkin, J. A., McKenzie, T. L., & Sallis, J. F.). We want to investigate the variations of this two variables trough gender.
+
+**Research question 3:** What is the relationship between physical activities, the Mental Health  status and drinks/smoke behavior?
+
+Is a common sense think that people who do exercise take more care for themself and be less proportional to take alcoholic drinks and smoke, and there is also a relationship between mental health and alcoholic drinks and smoke (Ferreira, V.R.,). So we want to investigate the variations on drinks/smoke behavior trough the two variables.
+
+## References
+
+Peluso MA, Guerra de Andrade LH. Physical activity and mental health: the association between exercise and mood. Clinics (Sao Paulo). 2005 Feb;60(1):61-70. doi: 10.1590/s1807-59322005000100012. Epub 2005 Mar 1. PMID: 15838583.
+
+Rosenfield S., Mouzon D. (2013) Gender and Mental Health. In: Aneshensel C.S., Phelan J.C., Bierman A. (eds) Handbook of the Sociology of Mental Health. Handbooks of Sociology and Social Research. Springer, Dordrecht. https://doi.org/10.1007/978-94-007-4276-5_14
+
+Sarkin, J. A., McKenzie, T. L., & Sallis, J. F. (1997). Gender Differences in Physical Activity during Fifth-Grade Physical Education and Recess Periods, Journal of Teaching in Physical Education, 17(1), 99-106. Retrieved Jan 13, 2022, from https://journals.humankinetics.com/view/journals/jtpe/17/1/article-p99.xml
+
+Ferreira, V.R., Addictive Behaviors Reports, https://doi.org/10.1016/j.abrep.2018.100147
+
+* * *
+
+## Part 3: Exploratory data analysis
+
+**Data Preparation**
+
+All research questions pertains in mental health variable, which use the variable `menthlth`. This variable measured the mental health perception for the last past 30 days. So we need to categorizate the mental health disorder, we do these classifying the level of mental disorder from 1 to 5 depending on the days the person answered to feel their mental health was not good (where 1 is no mental disorder and 5 is major mental disorder).
+
+- 0 days: no mental disorder
+- 1 to 3 days: light mental disorder
+- 4 to 10 days: moderate mental disorder
+- 11 to 25 days: severe mental disorder
+- 26 to 30 days: chronic mental disorder
+
+To answer question 1 we will analyze physical activities according to  intensity levels. These are already calculate on the data set with the variable `X_pacat1`.
+
+- 0 minutes: Inactive
+- 10-149 minutes: Insufficiently active
+- 150-300 minutes: Active
+- 300+ minutes: Highly Active 
+
+To answer question 2 we will analyze the impact of gender, This variable is measure in `sex`.  We gonna compare the gender with the physical activities level categorizate if the people do or not do exercise and mental disorder if the people have or not have mental disorder. 
+
+To answer question 3 we will analyze the impact of tabaco/drink use. We will only consider if a person drink/smoke for the time survey was made, this variable is already calculated on `X_rfsmoke3` for smoke use and in `X_rfbing5` for alcohol drinks. But we only will consider a person that drink or smoke as active, and if don't like inactive.
+
+```{r}
+cleandata <- brfss2013 %>% 
+   filter(!is.na(menthlth)) %>%
+   mutate(menthlthlevel =  ifelse(menthlth == 0,  "no mental disorder", 
+                           ifelse(menthlth <= 3,  "light mental disorder", 
+                           ifelse(menthlth <= 10, "moderate mental disorder", 
+                           ifelse(menthlth <= 25, "severe mental disorder", 
+                           ifelse(menthlth <= 30, "chronic mental disorder", NA)))))) %>%
+  
+  filter(!is.na(X_pacat1)) %>%
+  
+  mutate(menthlthlevel1=ifelse(menthlthlevel == "no mental disorder", "No", "Yes"))%>%
+  mutate(X_pacat11=ifelse(X_pacat1 == "Inactive", "No activite", "Active"))%>%
+  mutate(smoke_drink=ifelse(X_rfsmok3 == "Yes"  | X_rfbing5 == "Yes", "Active smoker or drinker ", "No smoker or drinker"))%>%
+  
+  
+select(menthlthlevel,X_pacat1,menthlthlevel1,X_pacat11,sex,smoke_drink)
+
+  
+```
+
+**Research question 1:**
+
+The hypothesis is that Physical activity and mental health is related. In order to investigate this, first we group all the levels of mental disorder in one group and all the levels of physical activity in one group, if there is a relationship, we will see an obvious difference between people with mental disorder and his physical activity
+
+```{r}
+ggplot(data = cleandata, aes(x = X_pacat11, fill = menthlthlevel1)) +
+  geom_bar(position = "fill")+
+  labs(x = "
+       Physical activity", y = "Proportion", fill="Mental health disorder") 
+
+```
+
+We can see here that active people have less proportion of mental health disorder than people that isn't do any exercise. Now we want to see how the level of activity is related to the mental disorder.
+
+```{r}
+ggplot(data = cleandata, aes(x = X_pacat1, fill = menthlthlevel1)) +
+  geom_bar(position = "fill")+
+  labs(x = "
+       Physical activity", y = "Proportion", fill="Mental health disorder") 
+```
+
+Here we can see here that depending on the level of activity the proportion the mental health disorder varied, so as more intensive the active, the less proportion of mental health disorder. Finally we will investigate the level of health disorder with the level of activity. 
+```{r}
+cleandata$menthlthlevel<- factor(cleandata$menthlthlevel, levels= c("chronic mental disorder", "severe mental disorder", "moderate mental disorder","light mental disorder","no mental disorder"))
+
+ggplot(data = cleandata, aes(x = X_pacat1, fill = menthlthlevel)) +
+  geom_bar(position = "fill")+
+  labs(x = "
+       Physical activity", y = "Proportion", fill="Mental health disorder") 
+```
+
+Here we can see here that the level of activity seems to be relate also with the level of the mental health disorder, so as more intensive the active, the less proportion of the level of mental health disorder. So we can conclude that there is an association between the Physical activity and mental health.
+
+**Research quesion 2:**
+
+We hypothesis that physical active is related to mental health, and that this relationship differs between genders. .In order to investigate this, we will study the relation between gender and each of the variables, and the we will study the 3  variables together.
+
+```{r}
+ggplot(data = cleandata, aes(x = X_pacat11, fill = sex)) +
+  geom_bar(position = "fill")+
+  labs(x = "Physical activity", y = "Proportion", fill= "gender")
+```
+
+Is possible to observer that the males are more physical active than the woman. Now we gonna investigate the relation between gender and mental health.
+
+```{r}
+ggplot(data = cleandata, aes(x = menthlthlevel1, fill = sex)) +
+  geom_bar(position = "fill")+
+  labs(x = "Mental health disorder", y = "Proportion", fill="gender") 
+```
+
+We can observe that men have a population with a lower proportion of active mental health disorder, this is satisfactory with the previous result obtained from the relationship between physical activity and mental health disorder, where we expect that the physically active are the least likely to have a mental health disorder. Finally we investigate the relationship between the three previous variables.
+
+```{r}
+cleandata$sex<- factor(cleandata$sex, levels= c("Female", "Male"))
+
+ggplot(cleandata) +
+  geom_bar(aes(x=X_pacat11, fill=sex),
+           position = "fill") +
+  facet_wrap(~menthlthlevel1)+
+labs(title = "Mental health disorder by physical activitie and gender", x = "
+     Physical activity", y = "proportion", fill="gender")
+
+```
+
+It is observed that the proportion of active mental health disorder is greater in women, and also the proportion of women is less active than that of men. So these results show that women tend to be less active that men, so the proportion of woman with mental health disorder is greater. 
+
+**Research quesion 3:**
+
+We hypothesis that physical active is related to mental health, and that this relationship differs between the drinks/smoke behavior.In order to investigate this, we will study the relation between drinks/smoke behavior and each of the variables, and the we will study the 3 variables together.
+
+```{r}
+cleandata<-cleandata%>%
+filter(!is.na(smoke_drink)) 
+
+ggplot(cleandata) +
+  geom_bar(aes(x=X_pacat11, fill=smoke_drink),
+           position = "fill") +
+  facet_wrap(~menthlthlevel1)+
+labs(title = "Mental health disorder by physical activitie and smoke/drink behaviur", x = "
+     Physical activity", y = "proportion", fill="Smoke drink behaviur")
+
+```
+
+In this third question we only will investigate the relationship to keep thinks simple. We can see that the proportion of active smokers is bigger on the people with mental health disorder, so here is a possible association between this two variables. We can also observed that the active people tend to drink and smoke less than no active people, so we can see and association here too. And as we deduce on the first question.
